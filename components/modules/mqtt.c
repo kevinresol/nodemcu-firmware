@@ -14,6 +14,9 @@
 #define MQTT_MAX_PASSWORD_LEN       65
 #define MQTT_MAX_LWT_TOPIC          32
 #define MQTT_MAX_LWT_MSG            128
+#define MQTT_MAX_CERT_LEN           2048
+#define MQTT_MAX_CLIENT_CERT_LEN    2048
+#define MQTT_MAX_CLIENT_KEY_LEN     2048
 
 typedef struct {
 	esp_mqtt_client_config_t config;
@@ -24,6 +27,9 @@ typedef struct {
 	char password[MQTT_MAX_PASSWORD_LEN];
 	char lwt_topic[MQTT_MAX_LWT_TOPIC];
 	char lwt_msg[MQTT_MAX_LWT_MSG];
+	char cert_pem[MQTT_MAX_CERT_LEN];
+	char client_cert_pem[MQTT_MAX_CLIENT_CERT_LEN];
+	char client_key_pem[MQTT_MAX_CLIENT_KEY_LEN];
 } esp_mqtt_lua_client_config_t;
 
 task_handle_t hConn;
@@ -446,6 +452,9 @@ static int mqtt_connect( lua_State* L )
 	const char * host = luaL_checkstring( L, 2 );
 	int port = 1883;
 	int n = 3;
+	const char * cert_pem = NULL;
+	const char * client_cert_pem = NULL;
+	const char * client_key_pem = NULL;
 
 	if( lua_isnumber( L, n ) )
 	{
@@ -462,6 +471,24 @@ static int mqtt_connect( lua_State* L )
 	if( lua_isnumber( L, n ) )
 	{
 		reconnect = !!luaL_checkinteger( L, n );
+		n++;
+	}
+
+	if( lua_isstring( L, n ) )
+	{
+		cert_pem = luaL_checkstring( L, n );
+		n++;
+	}
+
+	if( lua_isstring( L, n ) )
+	{
+		client_cert_pem = luaL_checkstring( L, n );
+		n++;
+	}
+	
+	if( lua_isstring( L, n ) )
+	{
+		client_key_pem  = luaL_checkstring( L, n );
 		n++;
 	}
 
@@ -482,6 +509,18 @@ static int mqtt_connect( lua_State* L )
 	lua_pop( L, n - 2 ); //pop parameters
 
 	strncpy(mqtt_cfg->host, host, MQTT_MAX_HOST_LEN );
+	if(cert_pem) {
+		strncpy(mqtt_cfg->cert_pem, cert_pem, MQTT_MAX_CERT_LEN);
+		mqtt_cfg->config.cert_pem = mqtt_cfg->cert_pem;
+	}
+	if(client_cert_pem) {
+		strncpy(mqtt_cfg->client_cert_pem, client_cert_pem, MQTT_MAX_CLIENT_CERT_LEN);
+		mqtt_cfg->config.client_cert_pem = mqtt_cfg->client_cert_pem;
+	}
+	if(client_key_pem) {
+		strncpy(mqtt_cfg->client_key_pem, client_key_pem, MQTT_MAX_CLIENT_KEY_LEN);
+		mqtt_cfg->config.client_key_pem = mqtt_cfg->client_key_pem;
+	}
 	mqtt_cfg->config.port = port;
 
 	mqtt_cfg->config.disable_auto_reconnect = (reconnect == 0);
